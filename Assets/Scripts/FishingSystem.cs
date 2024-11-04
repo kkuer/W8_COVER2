@@ -54,6 +54,9 @@ public class FishingSystem : MonoBehaviour
     Coroutine waitForFishCoroutine = null;
     Coroutine bobCountdownTimerCoroutine = null;
 
+    public GameObject rodPos;
+    public LineRenderer fishingLine;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -63,6 +66,17 @@ public class FishingSystem : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (newBobber != null)
+        {
+            fishingLine.SetPosition(0, rodPos.transform.position);
+            fishingLine.SetPosition(0, newBobber.transform.position);
+        }
+        else
+        {
+            fishingLine.SetPosition(0, rodPos.transform.position);
+            fishingLine.SetPosition(1, rodPos.transform.position);
+        }
+
         moneyText.text = "$" + money;
 
         if (!roundActive && !afterRoundPhase && canCast)
