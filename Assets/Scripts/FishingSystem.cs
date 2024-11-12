@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEngine.UI;
 using TMPro;
+using Cinemachine;
 
 public class FishingSystem : MonoBehaviour
 {
@@ -26,7 +27,20 @@ public class FishingSystem : MonoBehaviour
     public ParticleSystem bobbingParticles;
 
     public GameObject catchingSliderObject;
+    public GameObject catchingSliderObjectChild;
     public UnityEngine.UI.Slider catchingSlider;
+    public UnityEngine.UI.Slider cooldownSlider;
+
+    public GameObject mashTextObject;
+    public GameObject mashAmountTextObject;
+    public TMP_Text mashAmountText;
+    public GameObject shatter;
+
+    public GameObject cam1;
+    public CinemachineVirtualCamera cineCam;
+
+    public Color sliderCooldown;
+    public Color slider2_2;
 
     public float mashAmount = 0f;
 
@@ -43,16 +57,22 @@ public class FishingSystem : MonoBehaviour
     public bool catchingPhase = false;
     public bool afterRoundPhase = false;
 
+    public bool cooldownStarted = false;
+
     public bool castSuccess = false;
     public bool isBobbing = false;
     public bool isCatching = false;
     public bool catchSuccess = false;
     public bool bobCountdown = false;
 
+    public bool catchCooldown = true;
+
     public bool canCast = true;
+    public bool canMash = false;
 
     Coroutine waitForFishCoroutine = null;
     Coroutine bobCountdownTimerCoroutine = null;
+    Coroutine catchCooldownCoroutine = null;
 
     public GameObject rodPos;
     public LineRenderer fishingLine;
@@ -124,9 +144,12 @@ public class FishingSystem : MonoBehaviour
             {
                 isCatching = true;
                 mashAmount = fishValue;
-                catchingSlider.minValue = 0;
-                catchingSlider.maxValue = mashAmount;
-                catchingSlider.value = Mathf.RoundToInt(fishValue/2);
+                catchingSlider.minValue = 10;
+                catchingSlider.maxValue = mashAmount + 10;
+                catchingSlider.value = Mathf.RoundToInt(((catchingSlider.maxValue - catchingSlider.minValue) / 3) + 10);
+                mashAmountText.text = mashAmount.ToString();
+                catchingSliderObjectChild.SetActive(false);
+                mashTextObject.SetActive(false);
                 catchingSliderObject.SetActive(true);
             }
 
@@ -134,18 +157,49 @@ public class FishingSystem : MonoBehaviour
             {
                 isCatching = false;
                 catchingPhase = false;
+                canMash = false;
                 catchingSliderObject.SetActive(false);
 
                 mashAmount = 0;
+                mashTextObject.SetActive(false);
 
                 catchSuccess = true;
                 afterRoundPhase = true;
+                //move cinemachine cam
             }
-            else if (catchingSlider.value <= catchingSlider.minValue)
+            else if (catchingSlider.value <= 10 && !catchCooldown)
             {
+                if (!catchCooldown)
+                {
+                    StopCoroutine(catchCooldownCoroutine);
+                    isCatching = false;
+                    catchingPhase = false;
+                    canMash = false;
+                    catchCooldown = true;
+                    catchingSliderObject.SetActive(false);
+                    shatter.SetActive(true);
+                    roundActive = false;
+                    canCast = false;
+                    bobbingParticles = null;
+                    Destroy(newBobber.gameObject);
+                    newBobber = null;
+                    canCast = true;
+                }
+            }
+
+            if (((catchingSlider.value - catchingSlider.minValue) / (catchingSlider.maxValue - catchingSlider.minValue)) * (cooldownSlider.maxValue - cooldownSlider.minValue) + cooldownSlider.minValue <= cooldownSlider.value && !catchCooldown)
+            {
+                Debug.Log(((catchingSlider.value - catchingSlider.minValue) / (catchingSlider.maxValue - catchingSlider.minValue)) * (cooldownSlider.maxValue - cooldownSlider.minValue) + cooldownSlider.minValue);
+                Debug.Log(cooldownSlider.value);
+                Debug.Log("trigger2");
+                StopCoroutine(catchCooldownCoroutine);
                 isCatching = false;
                 catchingPhase = false;
+                canMash = false;
+                catchCooldown = true;
+                cooldownSlider.value = 0;
                 catchingSliderObject.SetActive(false);
+                shatter.SetActive(true);
                 roundActive = false;
                 canCast = false;
                 bobbingParticles = null;
@@ -164,6 +218,12 @@ public class FishingSystem : MonoBehaviour
                 Destroy(newBobber.gameObject);
                 newBobber = null;
                 catchSuccess = false;
+
+                catchCooldown = true;
+                cooldownSlider.value = 0;
+                shatter.gameObject.SetActive(true);
+                cooldownSlider.value = 0;
+
                 StartCoroutine(showFish());
             }
         }
@@ -187,7 +247,7 @@ public class FishingSystem : MonoBehaviour
                 if (newIndicator.transform.position.z < maxCastPos.z)
                 {
                     //move indicator
-                    newIndicator.gameObject.transform.Translate(Vector3.forward * Time.deltaTime);
+                    newIndicator.gameObject.transform.Translate(Vector3.forward * 1f * Time.deltaTime);
                 }
             }
             else if (waitingPhase)
@@ -200,6 +260,11 @@ public class FishingSystem : MonoBehaviour
                         bobCountdownTimerCoroutine = null;
                     }
                     waitingPhase = false;
+                    if (!cooldownStarted)
+                    {
+                        cooldownStarted = true;
+                        catchCooldownCoroutine = StartCoroutine(catchingCooldown());
+                    }
                     catchingPhase = true;
                     isCatching = false;
                     isBobbing = false;
@@ -224,7 +289,10 @@ public class FishingSystem : MonoBehaviour
             {
                 if (isCatching)
                 {
-                    catchingSlider.value++;
+                    if (canMash)
+                    {
+                        catchingSlider.value++;
+                    }
                 }
             }
         }
@@ -256,7 +324,24 @@ public class FishingSystem : MonoBehaviour
     {
         if (catchingPhase)
         {
-            catchingSlider.value -= 5f * Time.deltaTime;
+            if (!catchCooldown)
+            {
+                ShakeCamera(1f);
+                if (fishValue <= 25)
+                {
+                    catchingSlider.value -= 2f * Time.deltaTime;
+                }
+                else if (fishValue >= 25)
+                {
+                    catchingSlider.value -= 5f * Time.deltaTime;
+                }
+                cooldownSlider.value += 0.1f * Time.deltaTime;
+            }
+
+            if (cooldownSlider.value < 0.28 && catchCooldown)
+            {
+                cooldownSlider.value += 0.1f * Time.deltaTime;
+            }
         }
     }
 
@@ -264,17 +349,20 @@ public class FishingSystem : MonoBehaviour
     {
         isBobbing = false;
         yield return new WaitForSeconds(Random.Range(3f, 7f));
-        fishValue = Random.Range(10, 50);
+        fishValue = Random.Range(15, 25);
         bobCountdown = true;
         isBobbing = true;
     }
 
     public IEnumerator showFish()
     {
+        cam1.SetActive(false);
+        ShakeCamera(0f);
         catchText.text = "You caught a $" + fishValue + " fish!";
         catchUI.SetActive(true);
         money += fishValue;
         yield return new WaitForSeconds(3f);
+        cam1.SetActive(true);
         catchUI.SetActive(false);
         fishValue = 0f;
         afterRoundPhase = false;
@@ -294,5 +382,29 @@ public class FishingSystem : MonoBehaviour
         Destroy(newBobber.gameObject);
         newBobber = null;
         canCast = true;
+    }
+
+    public IEnumerator catchingCooldown()
+    {
+        catchCooldown = true;
+        mashAmountTextObject.SetActive(true);
+        yield return new WaitForSeconds(3f);
+
+        cooldownSlider.value = 0f;
+        catchCooldown = false;
+        canMash = true;
+
+        shatter.gameObject.SetActive(false);
+        catchingSliderObjectChild.SetActive(true);
+        mashAmountTextObject.SetActive(false);
+        mashAmountText.text = "0";
+        mashTextObject.SetActive(true);
+        cooldownStarted = false;
+    }
+
+    public void ShakeCamera(float intensity)
+    {
+        CinemachineBasicMultiChannelPerlin cineShaker = cineCam.GetCinemachineComponent<CinemachineBasicMultiChannelPerlin>();
+        cineShaker.m_AmplitudeGain = intensity;
     }
 }
