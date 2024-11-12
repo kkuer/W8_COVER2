@@ -165,12 +165,13 @@ public class FishingSystem : MonoBehaviour
 
                 catchSuccess = true;
                 afterRoundPhase = true;
-                //move cinemachine cam
+                ShakeCamera(0f);
             }
             else if (catchingSlider.value <= 10 && !catchCooldown)
             {
                 if (!catchCooldown)
                 {
+                    ShakeCamera(0f);
                     StopCoroutine(catchCooldownCoroutine);
                     isCatching = false;
                     catchingPhase = false;
@@ -189,9 +190,7 @@ public class FishingSystem : MonoBehaviour
 
             if (((catchingSlider.value - catchingSlider.minValue) / (catchingSlider.maxValue - catchingSlider.minValue)) * (cooldownSlider.maxValue - cooldownSlider.minValue) + cooldownSlider.minValue <= cooldownSlider.value && !catchCooldown)
             {
-                Debug.Log(((catchingSlider.value - catchingSlider.minValue) / (catchingSlider.maxValue - catchingSlider.minValue)) * (cooldownSlider.maxValue - cooldownSlider.minValue) + cooldownSlider.minValue);
-                Debug.Log(cooldownSlider.value);
-                Debug.Log("trigger2");
+                ShakeCamera(0f);
                 StopCoroutine(catchCooldownCoroutine);
                 isCatching = false;
                 catchingPhase = false;
@@ -247,7 +246,7 @@ public class FishingSystem : MonoBehaviour
                 if (newIndicator.transform.position.z < maxCastPos.z)
                 {
                     //move indicator
-                    newIndicator.gameObject.transform.Translate(Vector3.forward * 1f * Time.deltaTime);
+                    newIndicator.gameObject.transform.Translate(Vector3.forward * 3f * Time.deltaTime);
                 }
             }
             else if (waitingPhase)
